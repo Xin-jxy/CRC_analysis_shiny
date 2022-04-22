@@ -378,9 +378,9 @@ contrasts.matrix<-makeContrasts(CovVSNegOther=COV.Other-Neg.Other,
                                 CovVSNegAde=COV.adenocarcinome-Neg.adenocarcinome,levels=desigN)
 
 #test qlf
-#qlf<-glmQLFTest(fit,contrast=contrasts.matrix[,"CovVSNegOther"])
+qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegOther"])
 
-qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegAde"])
+#qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegAde"])
 #glmQLFTest
 qlf$table$FDR <- p.adjust(qlf$table$PValue,"BH")
 qlf_res=topTags(qlf,n = nrow( qlf$table ))$table
