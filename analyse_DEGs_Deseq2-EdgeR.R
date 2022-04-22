@@ -1,7 +1,7 @@
 source("~/Documents/analysis_script_RNAseq/script/Universal_Function.R")
 
 #Liste des packages necessaires:
-packages=c("ggplot2" ,"clusterProfileis_script_RNAseq/script/Universal_r","pheatmap" ,"edgeR" , "statmod","DESeq2","NMF","ggbeeswarm",
+packages=c("ggplot2" ,"clusterProfiler","pheatmap" ,"edgeR" , "statmod","DESeq2","NMF","ggbeeswarm",
            "genefilter","pheatmap","ade4","viridis","tidyverse","dplyr","tximeta","tximport","openxlsx",
            'EnhancedVolcano',"ggrepel","biomaRt","reshape","RColorBrewer","VennDiagram","ComplexHeatmap",
            "plotly","crosstalk","ggvenn","DT","curl") 
