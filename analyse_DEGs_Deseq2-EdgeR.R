@@ -355,7 +355,7 @@ list_calculate <- scaleOffset(y, matrix_normM)
 #construction of model
 Des_Group <- factor(paste(sampleTable$condition,sampleTable$Histological_type,sep="."))
 cbind(sampleTable,Group=Des_Group)
-desigN <- model.matrix(~Des_Group,data=sampleTable)
+desigN <- model.matrix(~0+Des_Group,data=sampleTable)
 colnames(desigN) <- levels(Des_Group)
 
 keep <- filterByExpr(list_calculate,desigN)
@@ -378,9 +378,9 @@ contrasts.matrix<-makeContrasts(CovVSNegOther=COV.Other-Neg.Other,
                                 CovVSNegAde=COV.adenocarcinome-Neg.adenocarcinome,levels=desigN)
 
 #test qlf
-qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegOther"])
+#qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegOther"])
 
-#qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegAde"])
+qlf<-glmLRT(fit,contrast=contrasts.matrix[,"CovVSNegAde"])
 #glmQLFTest
 qlf$table$FDR <- p.adjust(qlf$table$PValue,"BH")
 qlf_res=topTags(qlf,n = nrow( qlf$table ))$table
