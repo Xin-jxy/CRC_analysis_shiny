@@ -1,19 +1,27 @@
 source("~/Documents/analysis_script_RNAseq/script/Universal_Function.R")
 
 #Liste des packages necessaires:
-packages=c("ggplot2" ,"clusterProfiler","pheatmap" ,"edgeR" , "statmod","DESeq2","NMF","ggbeeswarm",
-           "genefilter","pheatmap","ade4","viridis","tidyverse","dplyr","tximeta","tximport","openxlsx",
-           'EnhancedVolcano',"ggrepel","biomaRt","reshape","RColorBrewer","VennDiagram","ComplexHeatmap",
-           "plotly","crosstalk","ggvenn","DT","curl") 
+packages=c("plyr", "dplyr", "tm", "readxl", "wordcloud", "SnowballC", "stringdist", "tidytext",
+                "rmarkdown", "knitr", "quanteda", "reshape", "stringr", "RecordLinkage", "plotly",
+                "data.table", "rvest",  "shiny", "shinydashboard", "shinyWidgets", "DT","shinythemes","InteractiveComplexHeatmap",
+                "ggplot2" ,"clusterProfiler","pheatmap" ,"edgeR" , "statmod","DESeq2","NMF","ggbeeswarm",
+                "genefilter","pheatmap","ade4","viridis","tidyverse","dplyr","tximeta","tximport","openxlsx",
+                'EnhancedVolcano',"ggrepel","biomaRt","reshape","RColorBrewer","VennDiagram","ComplexHeatmap",
+                "crosstalk","ggvenn","DT","curl","ConsensusTME","org.Hs.eg.db","GSVA","limma","tidyr",
+                "enrichplot","fgsea","msigdbr","ggnewscale","devtools","MCPcounter","gridExtra","ggsignif") 
 #Lancer la fonction de chargement/installation: 
 fun_packages(packages)
 #s'il y a des nécessité des packages avec bioconductor 
 #BiocManager::install(c("tximeta","DESeq2","tximport","clusterProfiler","edgeR",'EnhancedVolcano',"biomaRt" ))
 
 #load the RSEM rawdata
+setwd("~/Documents/RSEM_res")
 dir="~/Documents/RSEM_res"
 filelist <- list.files(dir)
-#samples <- read.table(file.path(dir, "COV1_S25_.genes.results"), header = TRUE)
+txi.rsem <- tximport(filelist, type = "rsem", txIn = FALSE, txOut = FALSE)
+colnames(txi.rsem$counts)=substring(filelist,1,5)
+colnames(txi.rsem$abundance)=substring(filelist,1,5)
+colnames(txi.rsem$length)=substring(filelist,1,5)
 #function is in Universal_Function.R
 ele=loadData(filelist)
 txi.rsem=ele[[1]]
@@ -115,17 +123,15 @@ pcaData=plotPCA(rld,"condition",returnData=T)
 pcaData_sort <- pcaData[order(pcaData$condition,decreasing=F),]
 
 #PCA without Cov7 samples
-ggplot(data = pcaData, aes(x = pcaData[,1], y = pcaData[,2],label=rownames(pcaData))) +
-  theme_minimal()+
-  geom_point(aes(color = condition))+geom_text_repel(hjust=0, vjust=0,size=3)+labs(title="PCA without Cov7 samples",x="PC1:20% variance",y="PC2:16% variance")+
+ggplot(data = pcaData, aes(x = pcaData[,1], y = pcaData[,2],label=rownames(pcaData))) +scale_color_manual(values=c("#FFC20A","#0C7BDC"))+
+  theme_minimal()+geom_point(aes(color = condition))+geom_text_repel(hjust=0, vjust=0,size=3)+labs(title="PCA with all patient samples",x="PC1:23% variance",y="PC2:18% variance")+
   theme(plot.title = element_text(size = 15,hjust=0.5),axis.text.x = element_text( hjust = -0.25,size=15),
         axis.text.y=element_text(size=15),axis.title.x= element_text(size=15),axis.title.y= element_text(size=15),
         legend.key.size = unit(2,"line"),legend.title = element_text(size = 15),legend.text = element_text(size = 15))
 
 #all samples
-ggplot(data = pcaData, aes(x = pcaData[,1], y = pcaData[,2],label=rownames(pcaData))) +
-  theme_minimal()+
-  geom_point(aes(color = condition))+geom_text_repel(hjust=0, vjust=0,size=3)+labs(title="PCA of all samples",x="PC1:23% variance",y="PC2:17% variance")+
+ggplot(data = pcaData, aes(x = pcaData[,1], y = pcaData[,2])) +scale_color_manual(values=c("#FFC20A","#0C7BDC"))+
+  theme_minimal()+geom_point(aes(color = condition,size=20))+labs(title="PCA of all samples",x="PC1:23% variance",y="PC2:19% variance")+
   theme(plot.title = element_text(size = 15,hjust=0.5),axis.text.x = element_text( hjust = -0.25,size=15),
         axis.text.y=element_text(size=15),axis.title.x= element_text(size=15),axis.title.y= element_text(size=15),
         legend.key.size = unit(2,"line"),legend.title = element_text(size = 15),legend.text = element_text(size = 15))
@@ -241,7 +247,7 @@ total_deseq_sort=total_deseq[order(total_deseq$padj), ]
 ################ the table of DEGs ################
 #COV_vs_NEG, so log2FC>0-->COV
 
-grp=c("COV","NEG")
+grp=c("UP","DOWN")
 grp.col <- c("#568875", "#73FAFC")
 
 DESeq_result_df <- DGE_sorted %>% data.frame() %>% arrange(log2FoldChange, padj)
@@ -256,7 +262,47 @@ table(DESeq_result_df$Enrichment)
 
 ############volcano plot############
 #function in Universal_Function.R
-Fun_Volcano(DGE_sorted)
+DGE_sorted[which(total_deseq$regulated=="up"),"Enrichment"]<-"Up"
+DGE_sorted[which(total_deseq$regulated=="down"),"Enrichment"]<-"Down"
+DGE_sorted[is.na(DGE_sorted$Enrichment),"Enrichment"]<-"Nonsignf"
+table(DGE_sorted$Enrichment)
+keyvals.colour <- ifelse(
+  DGE_sorted$padj<0.05 & DGE_sorted$log2FoldChange>=1, '#E66100',
+  ifelse(DGE_sorted$padj<0.05 & DGE_sorted$log2FoldChange<=(-1), '#5D3A9B',
+         'grey'))
+keyvals.colour[is.na(keyvals.colour)] <- 'grey'
+names(keyvals.colour)[keyvals.colour == '#5D3A9B'] <- 'Down'
+names(keyvals.colour)[keyvals.colour == 'grey'] <- 'Nonsignf'
+names(keyvals.colour)[keyvals.colour == '#E66100'] <- 'Up'
+
+volcano=EnhancedVolcano(DGE_sorted,
+                lab = rownames(DGE_sorted),
+                selectLab = rownames(DGE_sorted)[which(names(keyvals.colour) %in% c('Up', 'Down'))],
+                x = 'log2FoldChange',
+                y = 'padj',
+                colCustom = keyvals.colour,
+                #ylim = c(0, 5.5),
+                pCutoff = 0.05,
+                FCcutoff = 1,
+                labSize = 5.0,
+                labCol = 'black',
+                labFace = 'bold',
+                colAlpha = 1/2,
+                legendPosition = 'right',
+                legendLabSize = 15,
+                legendIconSize = 4.0,
+                colConnectors = 'black',
+                xlab = bquote(~~Log[2]~ 'fold change'),
+                maxoverlapsConnectors=Inf,
+                drawConnectors = F,
+                widthConnectors = 0.75,
+                title = 'Volcano plot of DEGs colored with COV and Neg patients',
+                legendLabels = c("NS", expression(Log[2] ~ FC), "adjusted p-value", expression(p - adj ~ and
+                                                                                               ~ log[2] ~ FC)),
+                ylab = bquote(~-Log[10] ~ italic(Padj)),
+                axisLabSize = 18) 
+library("ggallin")
+volcano+scale_y_continuous(trans=pseudolog10_trans,limits=c(1,5.5))
 
 ############### Heatmap #############
 
@@ -273,15 +319,15 @@ normalized_counts <- counts(DESeq.ds, normalized=TRUE)
 
 #estabilish the annotation col or row
 ### prepare pheatmap
-histology=c(rep("adénocarcinome",4),"carcinome adénosquameux","carcinome épidermoïde",
-            rep("adénocarcinome",4),"X", rep("adénocarcinome",3),"carcinome neuroendocrine",rep("adénocarcinome",3),rep("carcinome épidermoïde",3),"adénocarcinome")
-age=c("40-60",rep("60-80",2),"40-60",rep("60-80",2),"40-60",rep("60-80",3),"X",rep("40-60",2),rep("60-80",9))
-sexe=c(rep("M",2),rep("F",2),rep("M",3),rep("F",2),"M","X",rep("M",2),"F",rep("M",7),"F")
+histology=c(rep("adenocarcinoma",4),"adenosquamous carcinoma","squamous cell carcinoma",
+            rep("adenocarcinoma",4),"squamous cell carcinoma", rep("adenocarcinoma",3),"neuroendocrine carcinoma",rep("adenocarcinoma",3),rep("squamous cell carcinoma",3),"adenocarcinoma")
+age=c("40-60",rep("60-80",2),"40-60",rep("60-80",2),"40-60",rep("60-80",4),rep("40-60",2),rep("60-80",9))
+sexe=c(rep("M",2),rep("F",2),rep("M",3),rep("F",2),rep("M",4),"F",rep("M",7),"F")
 sample_info_commun = data.frame(
   Sample_Type=Groups,
   Histology_type=histology,
   Age=age,
-  Sexe=sexe)
+  Sex=sexe)
 
 #For DEGs
 #annot_colnames, from ENSEMBL to SYMBOL
@@ -292,6 +338,7 @@ rownames(sample_info_commun)=colnames(norm_data)
 #row(gene) annotation
 row_sample_deseq=subset(total_deseq,select=regulated)
 degs_norm_deseq <- norm_data[rownames(row_sample_deseq),]
+degs_norm_deseq=na.omit(degs_norm_deseq)
 
 des="Deseq2"
 pheatmap(degs_norm_deseq, scale="row",cluster_cols = F, cluster_rows = T,clustering_method="mcquitty",
@@ -305,13 +352,26 @@ pheatmap(degs_norm_deseq, scale="row",cluster_cols = F, cluster_rows = T,cluster
 logTPM <- function(x) {return(log2(x+1))}
 df_norm=degs_norm_deseq %>% mutate_if(is.numeric, logTPM)
 
-scale_data_deseq=degs_norm_deseq%>% pheatmap:::scale_rows()
-annot_degs=HeatmapAnnotation(df=sample_info_commun,boxplot=anno_boxplot(df_norm))
-annot_row_degs_deseq2=rowAnnotation(df=row_sample_deseq,bar=anno_barplot(rowMeans(df_norm)))
-Heatmap(scale_data_deseq,name = "Z-score",cluster_rows=F,show_row_names = FALSE,top_annotation=annot_degs,left_annotation=annot_row_degs_deseq2,
-        column_split = sample_info_commun$Sample_Type,column_title = "Heatmap of Deseq2 for DEGs genes")
+colours_col <- list("Histology_type"=c("adenocarcinoma"="#6699CC",
+                         "adenosquamous carcinoma"="#40B0A6",
+                         "squamous cell carcinoma"="#D35FB7",
+                         "neuroendocrine carcinoma"="#FEFE62"),
+                "Age"=c("40-60"="#99DDFF","60-80"="#CCDDAA"),
+                "Sex"=c("M"="#EE8866","F"="#AA4499"),
+                "Sample_Type"= c("COV" = "#0C7BDC" ,"Neg" ="#FFC20A"))
+colours_row <-list("regulated"=c("up"="#E66100","down"="#5D3A9B"))
 
-######################################################################
+row_sample_deseq=total_deseq[rownames(degs_norm_deseq),]
+row_sample_deseq=subset(row_sample_deseq,select=regulated)
+
+scale_data_deseq=degs_norm_deseq%>% pheatmap:::scale_rows()
+annot_degs=HeatmapAnnotation(df=sample_info_commun,which="col",col=colours_col,boxplot=anno_boxplot(df_norm))
+annot_row_degs_deseq2=rowAnnotation(df=row_sample_deseq,col=colours_row,bar=anno_barplot(rowMeans(df_norm)))
+Heatmap(scale_data_deseq,name = "Z-score",cluster_rows=F,show_row_names = FALSE,show_column_names = FALSE,top_annotation=annot_degs,left_annotation=annot_row_degs_deseq2,
+        column_title = "Heatmap of Deseq2 for DEGs analysis", #column_split = sample_info_commun$Sample_Type,
+        column_title_gp = gpar(fontsize = 20, fontface = "bold"))
+
+#######################################################################
 #                              edgeR                                 #
 ######################################################################
 
@@ -354,8 +414,8 @@ list_calculate <- scaleOffset(y, matrix_normM)
 
 #construction of model
 Des_Group <- factor(paste(sampleTable$condition,sampleTable$Histological_type,sep="."))
+desigN<-model.matrix(~0+Des_Group,data=sampleTable)
 cbind(sampleTable,Group=Des_Group)
-desigN <- model.matrix(~0+Des_Group,data=sampleTable)
 colnames(desigN) <- levels(Des_Group)
 
 keep <- filterByExpr(list_calculate,desigN)
@@ -369,7 +429,7 @@ plotMDS(estimeDisp)
 
 #fit <- glmQLFit(estimeDisp, contrast=desigN,robust=T)
 fit <- glmFit(estimeDisp, desigN,robust=T)
-#qlf<-glmLRT(fit)
+
 colnames(fit)
 plotQLDisp(fit)
 
@@ -394,7 +454,8 @@ summary(is.de)
 
 #get symbole
 idnames_sorted_edger=normTransSymbol(FDR_sorted)
-idnames_sorted_edger= rename(idnames_sorted_edger,c("logFC" ="log2FoldChange" ,"FDR" = "padj"))
+class(idnames_sorted_edger)
+idnames_sorted_edger= idnames_sorted_edger %>% rename("log2FoldChange"="logFC" ,"padj"="FDR" )
 
 #up and downregulated
 up=idnames_sorted_edger[which(idnames_sorted_edger$padj<0.05 & idnames_sorted_edger$log2FoldChange>=1),]
@@ -404,7 +465,7 @@ down$regulated="down"
 total_edger=rbind(up, down)
 total_edger_sort=total_edger[order(total_edger$padj), ]
 
-#write.table(total_edger, file="~/DGE_statRes_edgeR.csv", sep=",", quote=F,row.names = T,col.names=NA)
+write.table(total_edger, file="~/DGE_statRes_edgeR.csv", sep=",", quote=F,row.names = T,col.names=NA)
 
 #-----------------------------------------------------------------------
 #============      Visualization of data of EdgeR       ================
@@ -414,6 +475,44 @@ total_edger_sort=total_edger[order(total_edger$padj), ]
 ##########volcano plot#########
 Fun_Volcano(idnames_sorted_edger)
 
+keyvals.colour <- ifelse(
+  idnames_sorted_edger$padj<0.05 & idnames_sorted_edger$log2FoldChange>=1, '#E66100',
+  ifelse(idnames_sorted_edger$padj<0.05 & idnames_sorted_edger$log2FoldChange<=(-1), '#5D3A9B',
+         'grey'))
+keyvals.colour[is.na(keyvals.colour)] <- 'grey'
+names(keyvals.colour)[keyvals.colour == '#5D3A9B'] <- 'Down'
+names(keyvals.colour)[keyvals.colour == 'grey'] <- 'Nonsignf'
+names(keyvals.colour)[keyvals.colour == '#E66100'] <- 'Up'
+
+volcano=EnhancedVolcano(idnames_sorted_edger,
+                        lab = rownames(idnames_sorted_edger),
+                        selectLab = rownames(idnames_sorted_edger)[which(names(keyvals.colour) %in% c('Up', 'Down'))],
+                        x = 'log2FoldChange',
+                        y = 'padj',
+                        colCustom = keyvals.colour,
+                        #ylim = c(0, 5.5),
+                        pCutoff = 0.05,
+                        FCcutoff = 1,
+                        labSize = 5.0,
+                        labCol = 'black',
+                        labFace = 'bold',
+                        colAlpha = 1/2,
+                        legendPosition = 'right',
+                        legendLabSize = 15,
+                        legendIconSize = 4.0,
+                        colConnectors = 'black',
+                        xlab = bquote(~~Log[2]~ 'fold change'),
+                        maxoverlapsConnectors=Inf,
+                        drawConnectors = F,
+                        widthConnectors = 0.75,
+                        title = 'Volcano plot of DEGs colored with COV and Neg patients',
+                        legendLabels = c("NS", expression(Log[2] ~ FC), "adjusted p-value", expression(p - adj ~ and
+                                                                                                       ~ log[2] ~ FC)),
+                        ylab = bquote(~-Log[10] ~ italic(Padj)),
+                        axisLabSize = 18) 
+library("ggallin")
+volcano+scale_y_continuous(trans=pseudolog10_trans,limits=c(0,4.5))
+
 ##########################heatmap###############################
 
 ### prepare pheatmap
@@ -422,9 +521,9 @@ rownames(sample_info_commun)=colnames(list_pret$counts)
 up_down_edge=c(rep("up",length(rownames(data.frame(up)))),rep("down",length(rownames(data.frame(down)))))
 
 #For DEGs
-norm_edger=normTransform(df_normCounts_fn)
+norm_edger=normTransSymbol(normCts_final)
 row_sample_edger=subset(total_edger,select=regulated)
-degs_norm_edger <- normCts_final[rownames(row_sample_edger),]
+degs_norm_edger <- norm_edger[rownames(row_sample_edger),]
 
 
 #for histo
@@ -444,11 +543,11 @@ logTPM <- function(x) {return(log2(x+1))}
 df_norm=degs_norm_edger %>% mutate_if(is.numeric, logTPM)
 
 scale_data_edger=degs_norm_edger%>% pheatmap:::scale_rows()
-annot_degs_edger=HeatmapAnnotation(df=sample_info_commun,boxplot=anno_boxplot(df_norm))
-annot_row_degs_edger=rowAnnotation(df=row_sample,bar = anno_barplot(rowMeans(df_norm)))
-Heatmap(scale_data_edger,name = "Z-score",cluster_rows=F,show_row_names = FALSE,top_annotation=annot_degs_edger,left_annotation=annot_row_degs_edger,
-        column_split = sample_info_commun$Groups,column_title = "Heatmap of Deseq2 for DEGs genes")
-
+annot_degs_edger=HeatmapAnnotation(df=sample_info_commun,col=colours_col,boxplot=anno_boxplot(df_norm))
+annot_row_degs_edger=rowAnnotation(df=row_sample_edger,col=colours_row,bar = anno_barplot(rowMeans(df_norm)))
+Heatmap(scale_data_edger,name = "Z-score",cluster_rows=F,show_row_names = FALSE,show_column_names = FALSE,top_annotation=annot_degs_edger,left_annotation=annot_row_degs_edger,
+        column_title = "Heatmap of EdgeR for DEGs analysis",column_title_gp = gpar(fontsize = 20, fontface = "bold"))
+#column_split = sample_info_commun$Sample_Type,
 
 ######################################################################
 #              comparaison of two toolkits                           #
@@ -459,12 +558,21 @@ load("~/Documents/DEGs_multivariates_DesEdg_withoutCov7.RData")
 combined_res_des=merge(data.frame(DGE_sorted),data.frame(idnames_sorted_edger),by="row.names",all=F)
 summary(combined_res_des)
 
-ggplot(data = combined_res_des, mapping = aes(x = log2FoldChange.x, y = log2FoldChange.y)) + geom_point()+
-  labs(title="Correlation between 2 analyses",x="Deseq2LFC",y="EdgeRLFC")
-
 intersect_res=intersect(rownames(total_edger_sort),rownames(total_deseq_sort))
 intersect(rownames(total_edger_sort[1:10,]),rownames(total_deseq_sort[1:10,]))
 #write.table(intersect_res, file="~/res_intersect.txt", quote=F,row.names = F)
+edger_eliminate=total_edger_sort[-which(rownames(total_edger_sort)%in% intersect_res),]
+deseq_eliminate=total_deseq_sort[-which(rownames(total_deseq_sort)%in% intersect_res),]
+combined_res_des <- combined_res_des %>% 
+  mutate(Groups =
+           case_when(Row.names %in% intersect_res~"Intersect",
+                     Row.names %in% rownames(edger_eliminate)~"edgeR",
+                     Row.names %in% rownames(deseq_eliminate)~"DESeq2"
+                     ))
+combined_res_des$Groups<-combined_res_des$Groups %>% replace_na("NoSigf")
+ggplot(data = combined_res_des, mapping = aes(x = log2FoldChange.x, y = log2FoldChange.y,color=Groups,alpha = Groups)) +scale_colour_brewer(palette = "Set2")+ geom_point()+
+  scale_alpha_discrete(range = c(1,0.1,1,1))+theme_minimal()+
+  labs(title="Correlation between analysis DESeq2 and edgeR",x="Deseq2LFC",y="EdgeRLFC")
 
 x = list(
   EdgeR = rownames(total_edger_sort),
@@ -474,42 +582,10 @@ overlaps <- calculate.overlap(x)
 
 names(x) <- c("EdgeR","Deseq2")
 ggvenn(x, 
-       fill_color = c("#0073C2FF", "#EFC000FF"),
+       fill_color = c("#FC8D62","#66C2A5"),
        stroke_size = 0.5, set_name_size = 4)
+brewer.pal(5, "Set2")
 #bscols(ggplotly(ggvenn(x, 
  # fill_color = c("#0073C2FF", "#EFC000FF"),
   #stroke_size = 0.5, set_name_size = 4)),datatable(data.frame(overlaps$a3)))
-
-#output the data of DEGs
-df_deseq=data.frame(total_deseq[,-1])
-
-total_edger$ENSEMBL=rownames(total_edger)
-rownames(total_edger)=total_edger$SYMBOL
-df_edger=subset(total_edger,select=-SYMBOL)
-#write.table(df_edger, file="~/DGEs_statRes_withoutPOS_edger_Outliers.csv", sep=",", quote=F,row.names = T)
-
-up_intersect=data.frame(intersect(intersect_res,rownames(up_deseq)))
-up_intersect$regulated="up"
-colnames(up_intersect)=c("SYMBOL","regulated")
-down_intersect=data.frame(intersect(intersect_res,rownames(down_deseq)))
-down_intersect$regulated="down"
-colnames(down_intersect)=c("SYMBOL","regulated")
-up_down_intersect=rbind(up_intersect,down_intersect)
-row_inters=data.frame(GeneType=up_down_intersect$regulated)
-intersect_des=degs_norm_deseq[up_down_intersect$SYMBOL,]
-
-des="Deseq2"
-pheatmap(intersect_des, scale="row",cluster_cols = F, cluster_rows = T,clustering_method="mcquitty",
-         show_rownames = T, annotation_row = row_inters,clustering_distance_rows="correlation",
-         annotation_col = sample_info_commun,border=FALSE,display_numbers = F,
-         main = paste("Heatmap of", des,"for intersect DEGs genes",sep=" "),gaps_col =6,color= colorRampPalette(c("navy", "white", "firebrick3"))(10))
-
-
-intersect_edg=degs_norm_edger[up_down_intersect$SYMBOL,]
-edg="EdgeR"
-pheatmap(intersect_edg,scale="row", cluster_cols = F, cluster_rows = T,clustering_method="mcquitty",
-         show_rownames = T, annotation_row = row_inters,clustering_distance_rows="correlation",annotation_col = sample_info_commun,
-         border=FALSE,display_numbers = F,main = paste("Heatmap of",edg,"for intersect DEGs genes",sep=" "),
-         gaps_col =12,color= colorRampPalette(c("navy", "white", "firebrick3"))(10))
-
 
