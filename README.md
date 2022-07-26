@@ -6,18 +6,18 @@ A project of lung cancer patients who have the Covid, that uses mainly bulk RNA-
 
 ## BASH
 ### RNAseq UP-stream analysis
-The alignment and annotation process are done at serveur, find the data by taping `cd /data/data_cremer_lab/LungT_Covid_XinAnalysis` in Terminal. See what we have in this repertory with command `ls`. (detail about the alignment and annotation, please read my report, the command bash is availiable in the repertory as well)
+The alignment and annotation process is done at server, find the data by taping `cd /data/data_cremer_lab/LungT_Covid_XinAnalysis` in Terminal. See what we have in this repertory with the command `ls`. (detail about the alignment and annotation, please read my report, the command bash is available in the repertory as well)
 
 ## R
 ### A script individual for the convenience of shiny or other utilizations
 
-`Universal_Function.R` is a script which contains divers function for avoiding the repetition of code, which could be modified in different situation, the detail of utilization is written in the script.
+`Universal_Function.R` is a script that contains diverse functions for avoiding the repetition of code, which could be modified in different situations, the detail of utilization is written in the script.
  
 ### RNAseq DOWN-stream analysis
 
-`analyse_DEGs_Deseq2-EdgeR.R` is a script which contains mainly the process of gene differentially expressed (DEGs) analysis with two toolkits DESeq2 and edgeR. 
+`analyse_DEGs_Deseq2-EdgeR.R` is a script that contains mainly the process of gene differentially expressed (DEGs) analysis with two toolkits DESeq2 and edgeR. 
 
-`Enrichessement-analysis.R` is a script of enrichment analysis, contains the GO, KEGG, GESA analysis.
+`Enrichessement-analysis.R` is a script of enrichment analysis, containing the GO, KEGG, GESA analysis.
 
 `mcp_counter.R` and `Consensus_TME.R` are two scripts similary by using the toolkit MCPcounter and ConsensusTME. ConsensusTME can use design signature genes for calculating the score.
 
@@ -44,6 +44,6 @@ There is a side analysis of heatmap, is used to find out the correaltion of sele
         }
     }' |gzip > GSE131907_LungTumor_log2TPM.txt.gz `
 
-**Attention** This script can be used only in serveur and load the whole data sample of GSE131907 may full all the espace with serveur. Neverthless this selection of data reduce the saturation of serveur, but for utilization of others,please clean the object after each utilization by using command `rm(list=ls())` and then `.rs.restartR()` in in console.
+**Attention** This script can be used only in serveur and load the whole data sample of GSE131907 may full all the space with server. Nevertheless, this selection of data reduces the saturation of serveur, but for utilization of others, please clean the object after each utilization by using the command `rm(list=ls())` and then `.rs.restartR()` in console.
 
-The data and figure are availiable at repertory`/data/data_cremer_lab/LungT_Covid_XinAnalysis` as well in our serveur.
+The data and figure are available at repertory`/data/data_cremer_lab/LungT_Covid_XinAnalysis` as well in our server.
